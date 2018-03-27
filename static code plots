@@ -1,0 +1,170 @@
+import numpy as np
+from numpy import pi
+import matplotlib.pyplot as plt
+from matplotlib import animation
+###############################################################################
+#this paragraph is giving the variables values, for the rest of the code to use
+lambd = 2
+velocity = 0.7
+m=velocity* np.sqrt(lambd)
+#specifying the range of phi values
+phi_min = -1.0
+phi_max =  1.0
+#let's do appropriate boundaries of x. We don't need to go to x=infinity...
+#boundaries at x=pi produce values of phi which are 99.6% of phi=v 
+#boundaries at x=2pi produce vlues of phi which are 99.9993%.
+counter = 1000
+x = np.linspace(-2*pi, 2*pi, counter)
+x_0 = 0
+#producing different values of phi at regular intervals. 
+phi = np.linspace(phi_min, phi_max, counter)
+###############################################################################
+#defining the potential function, given by Q2 on the helper set1
+Potential = (lambd/4)*(phi**2 - velocity**2 )**2
+#the "np.diff" function is useful for differentiation    
+Potential_difference= np.diff(Potential)/(1/counter)
+print(Potential_difference)
+plt.figure()
+plt.plot(phi,Potential,'y',)
+plt.plot(velocity, 0, linestyle='-', marker='|', color='r' )
+plt.plot(-velocity, 0, linestyle='-', marker='|', color='r' )
+plt.legend(loc='best')
+plt.ylabel('Potential (V)')
+plt.xlabel('Phi')
+plt.title('Graph of potential')
+plt.show()
+plt.figure()
+plt.plot(phi[1:counter], Potential_difference, 'r', 
+                         label='d(Potential graph)/dx')
+plt.ylabel('(dV/dx)')
+plt.xlabel('Phi')
+plt.title('Graph of dV/dx')
+plt.plot(velocity,0,'ro')
+plt.plot(-velocity, 0, 'ro')
+plt.plot(phi,phi-phi)
+###############################################################################
+#defining the vac solns (phi=+/- v) and setting them up so they can be plotted:
+def vac_soln(velocity):
+    phi_vacuum = [velocity]*counter #RHS is 1000 identical terms of 'velocity'
+    return phi_vacuum
+phi_vacuum_plus = vac_soln(velocity)
+phi_vacuum_minus = vac_soln(-velocity)
+#for simpler, neater code I'm defining a function which calculates the 
+#coefficient inside of the tanh in the original-kink-solution
+def inside(velocity, lambd):
+    inside_tanh = (velocity*np.sqrt(lambd/2))
+    return inside_tanh
+inside_tanh = inside(velocity, lambd)
+def kink_soln(velocity,inside_tanh,x,x_0):
+    phi_kink = velocity*np.tanh(inside_tanh*(x-x_0))
+    return phi_kink    
+phi_kink_plus = kink_soln(velocity,inside_tanh,x,x_0)
+phi_kink_minus = kink_soln(velocity,-inside_tanh,x,x_0)
+plt.figure()
+plt.plot(x,phi_vacuum_plus, '--r', label = 'Positive Vacuum solution')
+plt.plot(x,phi_vacuum_minus, '--b', label = 'Negative Vacuum solution')
+plt.plot(x,phi_kink_plus, 'r', label = 'Positive kink solution')
+plt.plot(x,phi_kink_minus, 'b', label = 'Negative kink solution')
+plt.legend(loc='best')
+plt.ylabel('Phi')
+plt.xlabel('x')
+plt.title('Vacuum solutions and kink solutions')
+##############################################################################
+#defining the vacuum/kink derivatives
+def dphi_dx_vac():
+    derivative = 0
+    return derivative
+def dphi_dt_vac():
+    derivative = 0
+    return derivative
+def dphi_dx_kink(velocity, inside_tanh, x, x_0):
+    derivative= (velocity*inside_tanh) /( (np.cosh(inside_tanh*(x-x_0)) )  **2)
+    return derivative  
+def dphi_dt_kink():
+    derivative = 0
+    return derivative
+#transferring the above functions into variables
+dphi_dx_vacs = dphi_dx_vac()
+dphi_dt_vacs = dphi_dt_vac()
+dphi_dx_kinks = dphi_dx_kink(velocity, inside_tanh, x, x_0)
+dphi_dt_kinks = dphi_dt_kink()
+#defining the energy density function
+def energy_density(dphi_dx, dphi_dt, Potential):
+    rho = (((dphi_dx)**2)/2) + (((dphi_dt)**2)/2) + Potential
+    return rho
+rho_vacs = energy_density(dphi_dx_vacs, dphi_dt_vacs, Potential)
+#print(rho_vacs)
+rho_kinks = energy_density(dphi_dx_kinks, dphi_dt_kinks, Potential)
+print(rho_kinks)
+#now plotting the E.density of the vac and kink solns for comparison
+plt.figure()
+plt.plot(x,rho_vacs, '--r', label = 'E.Density of vac soln')
+plt.plot(x,rho_kinks, '--b', label = 'E.Density of kink soln')
+plt.legend(loc='best')
+plt.ylabel('Rho')
+plt.xlabel('x')
+plt.title('Energy density')
+###############################################################################
+def FirstOrderODE_RHS(lambd, velocity, phi):
+    #phi_plus needs a positive gradient at all times so *(-1) below...
+    RHS = -1 * np.sqrt(lambd/2) * (phi**2 - velocity**2) 
+    return RHS
+#Writing an Euler method
+#tot_steps = counter #counter was set to 1000
+def Euler_method(kink_soln,counter, x):
+    x_start = x[0] #starts at -2pi
+    y_start = kink_soln(velocity,inside_tanh, x_start, x_0) #approx -0.7
+    dx = np.diff(x)
+    y_Enumerical = []
+    for i in range(0, counter,1):
+        y_next = y_start + FirstOrderODE_RHS(lambd, velocity, y_start)*dx[i-1]
+        y_start = y_next
+        y_Enumerical.append(y_next)      
+    return (y_Enumerical)
+#running Euler method to give numerical solutions of phi_plus and phi_minus
+y_numericalE_p = Euler_method(kink_soln,counter, x) 
+y_numericalE_m = Euler_method(kink_soln,counter, -x) 
+###############################################################################       
+#defining an RK4 method
+def RK4(kink_soln, tot_steps, x):
+    x_start = x[0] #this means it starts at -2pi, see linspace on line14
+    dx = np.diff(x)
+    y_start = kink_soln(velocity,inside_tanh, x_start, x_0) #sets approx -0.7
+    print (y_start)
+    y_RK4numerical = []
+    for i in range(0,counter, 1):
+        k1 = FirstOrderODE_RHS(lambd, velocity, y_start)
+        k2 = FirstOrderODE_RHS(lambd, velocity, y_start + (1/2)*k1*dx[i-1])
+        k3 = FirstOrderODE_RHS(lambd, velocity, y_start +dx[i-1]*(1/2)*k2)
+        k4 = FirstOrderODE_RHS(lambd, velocity, y_start +dx[i-1]*k3)
+        y_next = y_start + (1/6)*dx[i-1]*(k1+ 2*k2+ 2*k3+ k4)
+        y_start = y_next
+        y_RK4numerical.append(y_next)
+    return (y_RK4numerical)
+#running RK4 method to give numerical solns of phi_plus and phi_minus
+y_numericalRK4_p = RK4(kink_soln, counter, x)
+y_numericalRK4_m = RK4(kink_soln, counter, -x)
+###############################################################################
+#plotting figs of phi_plus for Exact soln/Euler method/RK4
+plt.figure()
+plt.plot(x,phi_kink_plus, '-b', label = 'Exact solution (tanh)')
+plt.plot(x,y_numericalE_p, '-r', label = 'Euler method')
+plt.plot(x,y_numericalRK4_p, '-y', label = 'RK4 Method')
+plt.legend(loc='best')
+#plotting figs of phi_minus for Exact soln/Euler method/RK4
+plt.figure()
+plt.plot(x,phi_kink_minus, '-b', label = 'Exact solution (tanh)')
+plt.plot(x,y_numericalE_m, '-r', label = 'Euler method')
+plt.plot(x,y_numericalRK4_m, '-y', label = 'RK4 Method')
+plt.legend(loc='best')
+#calculating the absolute errors in Euler/RK4
+abs_eulerp_error = y_numericalE_p -kink_soln(velocity, inside_tanh,x,x_0) 
+abs_RK4p_error = y_numericalRK4_p -kink_soln(velocity, inside_tanh,x,x_0) 
+#plotting absolute errors
+plt.figure()
+plt.plot(x,abs_eulerp_error, '-g',label = 'Absolute error in Euler method')
+plt.plot(x,abs_RK4p_error, '-b', label = 'Absolute error in RK method')
+plt.legend(loc='best')
+plt.ylabel('phi')
+plt.xlabel('x')
+plt.title('Euler plot of phi')
